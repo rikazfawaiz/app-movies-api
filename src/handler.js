@@ -1,13 +1,13 @@
 const { nanoid } = require('nanoid');
-const movies = require('./movies');
+const Movies = require('./models/movie');
+const dbconn = require('./dbconfig/index');
 
-const addMovie = (request, h) => {
+const addMovie = async (request, h) => {
     const { title, year, runtime, genres, director, plot } = request.payload;
     const id = nanoid(16);
-    const insertDate = new Date().toISOString();
-    const updateDate = insertDate;
+    let isSuccess = false;
 
-    const newMovie = {id, title, year, runtime, genres, director, plot, insertDate, updateDate}
+    const newMovie = {id, title, year, runtime, genres, director, plot}
 
     const status = validationData(newMovie);
 
@@ -21,17 +21,30 @@ const addMovie = (request, h) => {
         return response;
     }
 
-    movies.push(newMovie);
+    //Insert To DB
+    try {
+        // create db
+        // await Movies;
+        // dbconn.sync();
 
-    const isSuccess = movies.filter((movie) => movie.id === id).length > 0;
+        const movie = await Movies.create({
+            id: id, 
+            title: title, 
+            year: year, 
+            runtime:  runtime, 
+            genres: genres.toString(), 
+            director: director, 
+            plot: plot
+        });
+        isSuccess = true;
+    } catch (error) {
+        console.log(error);
+    }    
 
     if(isSuccess) {
         const response = h.response({
             status: 'success',
             mesage: 'Data berhasil dimasukkan',
-            data: {
-                movies,
-            },
         });
         response.code(201);
         return response;
@@ -45,18 +58,27 @@ const addMovie = (request, h) => {
     return response;
 }
 
-const showAllMovies = () => ({
-    status: 'success',
-    data: {
-        movie : movies,
-    },
-});
+const showAllMovies = async (_, h) => {
+    const movies = await Movies.findAll();
+    const response = h.response({
+        status: 'success',
+        data: {
+            movie: movies,
+        },
+    });
+    response.code(201);
+    return response;
+}
 
-const showMovieById = (request, h) => {
+const showMovieById = async (request, h) => {
     const { movieId } = request.params;
-    const movie = movies.filter((movie) => movie.id === movieId)[0];
+    const movie = await Movies.findOne({
+        where: {
+            id: movieId
+        }
+    });
 
-    if(movie !== undefined) {
+    if(movie) {
         return ({
             status: 'success',
             data: {
@@ -73,18 +95,13 @@ const showMovieById = (request, h) => {
     return response;
 };
 
-const editMovieById = (request, h) => {
+const editMovieById = async (request, h) => {
     const { title, year, runtime, genres, director, plot } = request.payload;
-    const updateDate = new Date().toISOString();
     const { movieId } = request.params;
 
-    const index = movies.findIndex((movie) => movie.id === movieId);
-
-    const newMovie = {title, year, runtime, genres, director, plot, updateDate}
-
+    const newMovie = {title, year, runtime, genres, director, plot}
     const status = validationData(newMovie);
     
-    console.log(status);
     if(status[0]){
         const response = h.response({
             status: 'fail',
@@ -94,10 +111,23 @@ const editMovieById = (request, h) => {
         return response;
     }
 
-    if(index !== -1){
-        movies[index] = {
-            ...movies[index], ...newMovie,
-        };
+    const movie = await Movies.findOne({
+        where: {
+            id: movieId
+        }
+    });
+
+    if(movie){
+        await Movies.update({
+            title: title, 
+            year: year, 
+            runtime:  runtime, 
+            genres: genres.toString(), 
+            director: director, 
+            plot: plot
+        },{
+            where: { id: movieId },
+        });
         const response = h.response({
             status: 'success',
             mesage: 'Berhasil memperbarui data',
@@ -114,12 +144,20 @@ const editMovieById = (request, h) => {
     return response;    
 };
 
-const deleteMovieById = (request, h) => {
+const deleteMovieById = async(request, h) => {
     const { movieId } = request.params;
-    const index = movies.findIndex((movie) => movie.id === movieId);
+    const movie = await Movies.findOne({
+        where: {
+            id: movieId
+        }
+    });
 
-    if(index !== -1) {
-        movies.splice(index,1);
+    if(movie){
+        await Movies.destroy({
+            where: {
+                id: movieId
+            }
+        });
         const response = h.response({
             status: 'success',
             mesage: 'Berhasil menghapus data',
@@ -127,12 +165,13 @@ const deleteMovieById = (request, h) => {
         response.code(201);
         return response;
     }
+
     const response = h.response({
         status: 'fail',
         mesage: 'Gagal menghapus data. Id tidak ditemukan'
     });
     response.code(400);
-    return response;  
+    return response;        
 }
 
 const validationData = (data) => {

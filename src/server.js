@@ -1,5 +1,6 @@
 const Hapi = require('@hapi/hapi');
 const routes = require('./routes');
+const connection = require('./dbconfig');
 
 const init = async () => {
     const server = Hapi.server({
@@ -16,6 +17,16 @@ const init = async () => {
 
     await server.start();
     console.log(`Server berjalan di ${server.info.uri}`);
+    isConnect();
 };
+
+const isConnect = async () => {
+    try {
+        await connection.authenticate();
+        console.log("Database Connected");
+    } catch (error) {
+        console.log("Not Connected Database");
+    }
+}
 
 init();

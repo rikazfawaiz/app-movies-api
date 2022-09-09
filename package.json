@@ -14,6 +14,9 @@
   },
   "dependencies": {
     "@hapi/hapi": "^20.2.2",
-    "nanoid": "^3.3.4"
+    "hapi-mysql2": "^2.6.1",
+    "mysql2": "^2.3.3",
+    "nanoid": "^3.3.4",
+    "sequelize": "^6.21.4"
   }
 }
